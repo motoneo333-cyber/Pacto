@@ -8,7 +8,7 @@ export const BottomNavBar: React.FC = () => {
 
   const navItems = [
     { path: '/home', label: 'Inicio', icon: Home },
-    { path: '/grupo/g1', label: 'Grupo', icon: Users },
+    { path: '/grupo', label: 'Grupo', icon: Users },
     { path: '/pacto/nuevo', label: 'Nuevo Pacto', icon: PlusCircle, highlight: true },
     { path: '/perfil', label: 'Perfil', icon: User }
   ];

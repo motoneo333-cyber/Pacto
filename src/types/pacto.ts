@@ -151,3 +151,34 @@ export const PunishmentCreateSchema = z.object({
   category: z.enum(['money', 'embarrassment', 'service', 'random']),
   severity: z.number().int().min(1).max(5)
 });
+
+export interface PactoStanding {
+  pacto_id: string;
+  user_id: string;
+  username: string;
+  approved: number;
+  pending: number;
+  target: number;
+  met: boolean;
+}
+
+export interface PactoMemberRow extends PactoMember {
+  profiles?: { username: string } | null;
+}
+
+export interface PunishmentWithApprovals extends Punishment {
+  punishment_approvals: PunishmentApproval[];
+}
+
+export interface EvidenceView extends Progress {
+  username: string;
+  signedUrl?: string;
+  votes: Vote[];
+}
+
+export interface PickSentenceResult {
+  sentence: Sentence;
+  punishment: Punishment;
+  already: boolean;
+  candidates?: Punishment[];
+}
