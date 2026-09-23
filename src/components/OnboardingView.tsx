@@ -86,7 +86,7 @@ export const OnboardingView: React.FC = () => {
       </div>
 
       <p className="text-center text-xs text-gray-400">
-        Al entrar aceptas que tus fotos y ubicación se usen solo para verificar pactos con tu grupo.
+        Al entrar aceptas las <a href="/terminos" className="underline">condiciones</a> y la <a href="/privacidad" className="underline">política de privacidad</a>: tus fotos y ubicación se usan solo para verificar pactos con tu grupo.
       </p>
     </div>
   );

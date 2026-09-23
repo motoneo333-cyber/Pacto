@@ -10,6 +10,7 @@ import { GroupView } from './components/GroupView';
 import { JudgementCeremonyView } from './components/JudgementCeremonyView';
 import { ProfileView } from './components/ProfileView';
 import { BottomNavBar } from './components/BottomNavBar';
+import { PrivacyView, TermsView } from './components/LegalViews';
 import { useSession } from './lib/session';
 import { useToast } from './lib/toast';
 import { api } from './lib/api';
@@ -169,6 +170,9 @@ function AuthedRoutes() {
 
 function Gate() {
   const { user, profile, loading } = useSession();
+  // paginas legales publicas (Google las exige para publicar el login)
+  if (window.location.pathname === '/privacidad') return <PrivacyView />;
+  if (window.location.pathname === '/terminos') return <TermsView />;
   // un enlace de invitacion abierto sin sesion: recordar el codigo antes de pedir login
   if (!user && window.location.pathname === '/grupo/unirse') {
     const code = new URLSearchParams(window.location.search).get('code');
