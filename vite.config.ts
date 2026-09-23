@@ -10,30 +10,20 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      includeAssets: ['mask-icon.svg'],
       manifest: {
         name: 'PACTO — Cumple o asume las consecuencias',
         short_name: 'PACTO',
         description: 'Apuestas sociales de cumplimiento de metas',
         theme_color: '#FF5A1F',
-        background_color: '#0A0A0F',
+        background_color: '#090A0F',
         display: 'standalone',
         orientation: 'portrait',
         icons: [
           {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
+            src: 'mask-icon.svg',
+            sizes: '192x192 512x512',
+            type: 'image/svg+xml',
             purpose: 'any maskable'
           }
         ],

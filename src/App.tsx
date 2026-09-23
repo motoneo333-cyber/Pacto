@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { OnboardingView } from './components/OnboardingView';
 import { DashboardView } from './components/DashboardView';
 import { PactoDetailView } from './components/PactoDetailView';
@@ -7,111 +8,139 @@ import { CameraCaptureView } from './components/CameraCaptureView';
 import { GroupView } from './components/GroupView';
 import { JudgementCeremonyView } from './components/JudgementCeremonyView';
 import { ProfileView } from './components/ProfileView';
-import { Profile, Pacto } from './types/pacto';
+import { BottomNavBar } from './components/BottomNavBar';
+import { usePactoStore } from './usePactoStore';
 
-export default function App() {
-  const [currentUser, setCurrentUser] = useState<Profile | null>({
-    id: 'user-demo-id',
-    username: 'carlos_fit',
-    honor_points: 120,
-    shame_count: 1,
-    installed_pwa: true
-  });
-
-  const [currentRoute, setCurrentRoute] = useState<string>('home'); // onboarding, home, pacto_detail, pacto_nuevo, evidencia_nueva, grupo_detail, juicio, perfil
-  const [activePactoId, setActivePactoId] = useState<string>('p1');
-
-  const [pactos, setPactos] = useState<Pacto[]>([
-    {
-      id: 'p1',
-      group_id: 'g1',
-      name: 'Ejercicio Matutino',
-      emoji: '🏋️‍♂️',
-      goal_type: 'habit',
-      target_value: 5,
-      frequency: 'daily',
-      verification_type: 'strict_photo',
-      status: 'active',
-      start_date: new Date().toISOString(),
-      end_date: new Date(Date.now() + 7 * 86400000).toISOString()
-    }
-  ]);
-
-  if (!currentUser) {
-    return (
-      <OnboardingView
-        onLoginSuccess={(user) => {
-          setCurrentUser({
-            id: user.id,
-            username: user.username,
-            honor_points: 100,
-            shame_count: 0,
-            installed_pwa: true
-          });
-          setCurrentRoute('home');
-        }}
+function DashboardWrapper() {
+  const navigate = useNavigate();
+  return (
+    <>
+      <DashboardView
+        onCreatePactoClick={() => navigate('/pacto/nuevo')}
+        onPactoSelect={(id) => navigate(`/pacto/${id}`)}
+        onGroupSelect={(id) => navigate(`/grupo/${id}`)}
+        onProfileClick={() => navigate('/perfil')}
       />
-    );
-  }
+      <BottomNavBar />
+    </>
+  );
+}
 
-  const selectedPacto = pactos.find((p) => p.id === activePactoId) || pactos[0];
+function PactoDetailWrapper() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { pactos } = usePactoStore();
+  const pacto = pactos.find((p) => p.id === id) || pactos[0];
 
   return (
-    <div className="min-h-screen bg-[#0A0A0F] text-[#F5F5F7]">
-      {currentRoute === 'home' && (
-        <DashboardView
-          pactos={pactos}
-          onCreatePactoClick={() => setCurrentRoute('pacto_nuevo')}
-          onPactoSelect={(id) => {
-            setActivePactoId(id);
-            setCurrentRoute('pacto_detail');
-          }}
-          onGroupSelect={() => setCurrentRoute('grupo_detail')}
-          onProfileClick={() => setCurrentRoute('perfil')}
-        />
-      )}
+    <>
+      <PactoDetailView
+        pacto={pacto}
+        onBack={() => navigate('/home')}
+        onUploadEvidence={() => navigate('/evidencia/nueva')}
+        onOpenJudgement={() => navigate(`/juicio/${pacto.id}`)}
+      />
+      <BottomNavBar />
+    </>
+  );
+}
 
-      {currentRoute === 'pacto_detail' && selectedPacto && (
-        <PactoDetailView
-          pacto={selectedPacto}
-          onBack={() => setCurrentRoute('home')}
-          onUploadEvidence={() => setCurrentRoute('evidencia_nueva')}
-          onOpenJudgement={() => setCurrentRoute('juicio')}
-        />
-      )}
+function PactoWizardWrapper() {
+  const navigate = useNavigate();
+  const { addPacto } = usePactoStore();
 
-      {currentRoute === 'pacto_nuevo' && (
-        <PactoWizardView
-          groupId="g1"
-          onClose={() => setCurrentRoute('home')}
-          onPactoCreated={(newPacto) => {
-            setPactos([newPacto, ...pactos]);
-            setActivePactoId(newPacto.id);
-            setCurrentRoute('pacto_detail');
-          }}
-        />
-      )}
+  return (
+    <PactoWizardView
+      groupId="123e4567-e89b-12d3-a456-426614174000"
+      onClose={() => navigate('/home')}
+      onPactoCreated={(newPacto) => {
+        addPacto(newPacto);
+        navigate(`/pacto/${newPacto.id}`);
+      }}
+    />
+  );
+}
 
-      {currentRoute === 'evidencia_nueva' && (
-        <CameraCaptureView
-          onBack={() => setCurrentRoute('pacto_detail')}
-          onCaptured={() => {
-            setCurrentRoute('pacto_detail');
-          }}
-        />
-      )}
+function CameraCaptureWrapper() {
+  const navigate = useNavigate();
+  return (
+    <CameraCaptureView
+      onBack={() => navigate(-1)}
+      onCaptured={() => navigate(-1)}
+    />
+  );
+}
 
-      {currentRoute === 'grupo_detail' && (
-        <GroupView groupId="g1" onBack={() => setCurrentRoute('home')} />
-      )}
+function JudgementCeremonyWrapper() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { pactos } = usePactoStore();
+  const pacto = pactos.find((p) => p.id === id) || pactos[0];
 
-      {currentRoute === 'juicio' && selectedPacto && (
-        <JudgementCeremonyView pacto={selectedPacto} onBack={() => setCurrentRoute('pacto_detail')} />
-      )}
+  return <JudgementCeremonyView pacto={pacto} onBack={() => navigate(`/pacto/${pacto.id}`)} />;
+}
 
-      {currentRoute === 'perfil' && (
-        <ProfileView profile={currentUser} onBack={() => setCurrentRoute('home')} />
-      )}
-    </div>
+function GroupViewWrapper() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  return (
+    <>
+      <GroupView groupId={id || 'g1'} onBack={() => navigate('/home')} />
+      <BottomNavBar />
+    </>
+  );
+}
+
+function ProfileWrapper() {
+  const navigate = useNavigate();
+  const { currentUser } = usePactoStore();
+  return (
+    <>
+      <ProfileView
+        profile={currentUser || { id: 'u', username: 'guest', honor_points: 0, shame_count: 0, installed_pwa: false }}
+        onBack={() => navigate('/home')}
+      />
+      <BottomNavBar />
+    </>
+  );
+}
+
+function OnboardingWrapper() {
+  const navigate = useNavigate();
+  const { setCurrentUser } = usePactoStore();
+
+  return (
+    <OnboardingView
+      onLoginSuccess={(user) => {
+        setCurrentUser({
+          id: user.id,
+          username: user.username,
+          honor_points: 100,
+          shame_count: 0,
+          installed_pwa: true
+        });
+        navigate('/home');
+      }}
+    />
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <div className="min-h-screen bg-[#090A0F] text-[#F3F4F6]">
+        <Routes>
+          <Route path="/onboarding" element={<OnboardingWrapper />} />
+          <Route path="/home" element={<DashboardWrapper />} />
+          <Route path="/pacto/nuevo" element={<PactoWizardWrapper />} />
+          <Route path="/pacto/:id" element={<PactoDetailWrapper />} />
+          <Route path="/evidencia/nueva" element={<CameraCaptureWrapper />} />
+          <Route path="/grupo/:id" element={<GroupViewWrapper />} />
+          <Route path="/juicio/:id" element={<JudgementCeremonyWrapper />} />
+          <Route path="/perfil" element={<ProfileWrapper />} />
+          <Route path="*" element={<Navigate to="/home" replace />} />
+        </Routes>
+      </div>
+    </BrowserRouter>
   );
 }

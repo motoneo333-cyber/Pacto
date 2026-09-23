@@ -1,17 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #0A0A0F;
-  --surface: #16161E;
+  --bg: #090A0F;
+  --surface: #12141D;
+  --surface-border: rgba(255, 255, 255, 0.08);
   --primary: #FF5A1F;
-  --success: #B4F461;
-  --danger: #FF3B5C;
-  --gold: #FFC53D;
-  --text: #F5F5F7;
-  --font-display: 'Space Grotesk', sans-serif;
-  --font-body: 'Inter', sans-serif;
-  --radius: 16px;
-  --motion-spring: cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  --primary-hover: #E04810;
+  --success: #34D399;
+  --danger: #F87171;
+  --gold: #FBBF24;
+  --text: #F3F4F6;
+  --text-muted: #9CA3AF;
+  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --radius: 12px;
 }
 
 body {
@@ -21,8 +23,43 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
+  letter-spacing: -0.01em;
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* Glassmorphism & Card Styles */
+.glass-card {
+  background: rgba(18, 20, 29, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius);
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: var(--radius);
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-secondary {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--surface-border);
+  color: var(--text);
+  font-weight: 600;
+  border-radius: var(--radius);
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.1);
 }
