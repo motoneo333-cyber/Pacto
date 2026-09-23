@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Plus, Flame, Clock, Shield, Users, ChevronRight, User } from 'lucide-react';
 import { Pacto } from '../types/pacto';
+import { usePactoStore } from '../usePactoStore';
 
 interface DashboardViewProps {
-  pactos: Pacto[];
   onCreatePactoClick: () => void;
   onPactoSelect: (pactoId: string) => void;
   onGroupSelect: (groupId: string) => void;
@@ -11,12 +11,17 @@ interface DashboardViewProps {
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
-  pactos,
   onCreatePactoClick,
   onPactoSelect,
   onGroupSelect,
   onProfileClick
 }) => {
+  const { pactos, fetchPactos } = usePactoStore();
+
+  useEffect(() => {
+    fetchPactos();
+  }, [fetchPactos]);
+
   return (
     <div className="min-h-screen bg-[#0A0A0F] text-[#F5F5F7] p-4 max-w-md mx-auto space-y-6 pb-24">
       {/* Top Bar */}
@@ -61,10 +66,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         ) : (
           <div className="space-y-3">
             {pactos.map((pacto) => {
-              // Animated SVG Progress Ring calculation
               const radius = 24;
               const circumference = 2 * Math.PI * radius;
-              const progressPercentage = 0.65; // Demo progress
+              const progressPercentage = 0.65;
               const strokeDashoffset = circumference - progressPercentage * circumference;
 
               return (
@@ -92,7 +96,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Circular Animated SVG Progress */}
                   <div className="relative flex items-center justify-center">
                     <svg className="w-14 h-14 transform -rotate-90">
                       <circle
@@ -144,7 +147,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <ChevronRight className="w-5 h-5 text-gray-500" />
       </div>
 
-      {/* Floating Action Button (+ Pacto) */}
+      {/* Floating Action Button */}
       <button
         onClick={onCreatePactoClick}
         className="fixed bottom-6 right-6 bg-[#FF5A1F] text-white p-4 rounded-full shadow-2xl flex items-center space-x-2 font-bold hover:scale-105 active:scale-95 transition z-40 border-2 border-black"

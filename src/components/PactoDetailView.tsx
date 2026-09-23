@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Flame, Camera, Check, X, Clock, ShieldCheck, Scale } from 'lucide-react';
 import { Pacto } from '../types/pacto';
+import { supabase } from '../lib/supabaseClient';
+import { usePactoStore } from '../usePactoStore';
 
 interface PactoDetailProps {
   pacto: Pacto;
@@ -15,31 +17,47 @@ export const PactoDetailView: React.FC<PactoDetailProps> = ({
   onUploadEvidence,
   onOpenJudgement
 }) => {
-  // Live evidence feed stream (Simulating Supabase Realtime)
-  const [evidences, setEvidences] = useState([
+  const { evidences, fetchEvidences, addEvidence } = usePactoStore();
+  const [votedItems, setVotedItems] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    fetchEvidences(pacto.id);
+
+    // Subscribe to Supabase Realtime channel for live evidence feed
+    const channel = supabase
+      .channel(`pacto_feed_${pacto.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'progress', filter: `pacto_id=eq.${pacto.id}` },
+        (payload) => {
+          fetchEvidences(pacto.id);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [pacto.id, fetchEvidences]);
+
+  const handleVote = (evidenceId: string, verdict: boolean) => {
+    setVotedItems({ ...votedItems, [evidenceId]: verdict });
+  };
+
+  const defaultEvidences = [
     {
       id: 'e1',
       username: 'Carlos',
       timestamp: 'Hoy, 08:30 AM',
-      imageUrl: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=400&auto=format&fit=crop&q=60',
-      status: 'pending',
-      ownerId: 'user-carlos'
+      imageUrl: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=400&auto=format&fit=crop&q=60'
     },
     {
       id: 'e2',
       username: 'Sofía',
       timestamp: 'Ayer, 07:15 PM',
-      imageUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&auto=format&fit=crop&q=60',
-      status: 'approved',
-      ownerId: 'user-sofia'
+      imageUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&auto=format&fit=crop&q=60'
     }
-  ]);
-
-  const [votedItems, setVotedItems] = useState<Record<string, boolean>>({});
-
-  const handleVote = (evidenceId: string, verdict: boolean) => {
-    setVotedItems({ ...votedItems, [evidenceId]: verdict });
-  };
+  ];
 
   return (
     <div className="min-h-screen bg-[#0A0A0F] text-[#F5F5F7] p-4 max-w-md mx-auto space-y-6 pb-24">
@@ -68,7 +86,6 @@ export const PactoDetailView: React.FC<PactoDetailProps> = ({
           </div>
         </div>
 
-        {/* User Streak */}
         <div className="bg-[#0A0A0F] border border-white/5 p-3.5 rounded-xl flex items-center justify-between">
           <div className="flex items-center space-x-2 text-sm font-bold">
             <Flame className="w-5 h-5 text-[#FF5A1F]" />
@@ -91,7 +108,7 @@ export const PactoDetailView: React.FC<PactoDetailProps> = ({
         </div>
 
         <div className="space-y-4">
-          {evidences.map((item) => (
+          {defaultEvidences.map((item) => (
             <div
               key={item.id}
               className="bg-[#16161E] border border-white/10 rounded-2xl overflow-hidden shadow-lg space-y-3 p-4"
@@ -109,7 +126,6 @@ export const PactoDetailView: React.FC<PactoDetailProps> = ({
                 </div>
               </div>
 
-              {/* Voting buttons for other members (R6) */}
               <div className="flex items-center justify-between pt-1">
                 <span className="text-xs text-gray-400">Votación del Grupo:</span>
                 <div className="flex space-x-2">
@@ -142,7 +158,6 @@ export const PactoDetailView: React.FC<PactoDetailProps> = ({
         </div>
       </div>
 
-      {/* Judgment Ceremony Trigger Button */}
       <button
         onClick={onOpenJudgement}
         className="w-full bg-[#16161E] border border-[#FFC53D] text-[#FFC53D] font-extrabold py-3.5 rounded-2xl flex items-center justify-center space-x-2 shadow-lg hover:bg-[#FFC53D]/10 transition"
@@ -151,7 +166,6 @@ export const PactoDetailView: React.FC<PactoDetailProps> = ({
         <span>Ir a Ceremonia de Juicio Final</span>
       </button>
 
-      {/* Floating Action Button for Upload */}
       <button
         onClick={onUploadEvidence}
         className="fixed bottom-6 right-6 bg-[#FF5A1F] text-white p-4 rounded-full shadow-2xl flex items-center space-x-2 font-bold hover:scale-105 active:scale-95 transition z-40 border-2 border-black"

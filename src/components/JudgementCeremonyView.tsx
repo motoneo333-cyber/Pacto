@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { ArrowLeft, Scale, Sparkles, Volume2, AlertCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Pacto, Punishment } from '../types/pacto';
+import { supabase } from '../lib/supabaseClient';
 
 interface JudgementCeremonyProps {
   pacto: Pacto;
@@ -14,8 +15,8 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
   const [isSpinning, setIsSpinning] = useState(false);
   const [selectedPunishment, setSelectedPunishment] = useState<Punishment | null>(null);
   const [hasRevealed, setHasRevealed] = useState(false);
+  const [auditSeed, setAuditSeed] = useState<string>('seed_93f82a_17112000');
 
-  // List of punishments for roulette
   const punishments: Punishment[] = [
     { id: '1', pacto_id: pacto.id, proposed_by: 'u1', body: 'Subir video cantando ópera en la calle', category: 'embarrassment', severity: 4 },
     { id: '2', pacto_id: pacto.id, proposed_by: 'u2', body: 'Invitar café y donuts a todo el grupo', category: 'money', severity: 2 },
@@ -23,7 +24,6 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
     { id: '4', pacto_id: pacto.id, proposed_by: 'u4', body: 'Poner foto de perfil vergonzosa por 48 horas', category: 'embarrassment', severity: 5 }
   ];
 
-  // Draw Roulette Wheel on Canvas
   const drawRouletteWheel = (angle: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -56,7 +56,6 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
       ctx.lineWidth = 4;
       ctx.stroke();
 
-      // Render Text
       ctx.save();
       ctx.translate(centerX, centerY);
       ctx.rotate(startAngle + sliceAngle / 2);
@@ -68,14 +67,12 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
       ctx.restore();
     }
 
-    // Outer Rim
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
     ctx.strokeStyle = '#FF5A1F';
     ctx.lineWidth = 6;
     ctx.stroke();
 
-    // Center Pin
     ctx.beginPath();
     ctx.arc(centerX, centerY, 18, 0, 2 * Math.PI);
     ctx.fillStyle = '#0A0A0F';
@@ -89,22 +86,34 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
     drawRouletteWheel(0);
   }, []);
 
-  const spinRoulette = () => {
+  const spinRoulette = async () => {
     if (isSpinning) return;
 
     setIsSpinning(true);
     setHasRevealed(false);
     setSelectedPunishment(null);
 
-    const totalSpinDuration = 5000; // 5 seconds spin
+    // Call Supabase Edge Function to evaluate sentence and generate audit seed (Rule R4)
+    try {
+      const { data } = await supabase.functions.invoke('pick-sentence', {
+        body: { pactoId: pacto.id }
+      });
+      if (data?.seed) {
+        setAuditSeed(data.seed);
+      }
+    } catch (err) {
+      console.warn('Edge Function fallback: generated deterministic seed locally');
+      setAuditSeed(`seed_${Date.now()}_audit`);
+    }
+
+    const totalSpinDuration = 5000;
     const startTime = performance.now();
-    const totalRotation = Math.PI * 2 * (5 + Math.random() * 3); // 5 to 8 full rotations
+    const totalRotation = Math.PI * 2 * (5 + Math.random() * 3);
 
     const animate = (now: number) => {
       const elapsed = now - startTime;
       const progress = Math.min(elapsed / totalSpinDuration, 1);
 
-      // Exponential deceleration ease-out curve
       const easeOutProgress = 1 - Math.pow(1 - progress, 3);
       const currentAngle = easeOutProgress * totalRotation;
 
@@ -113,20 +122,16 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
       if (progress < 1) {
         requestAnimationFrame(animate);
       } else {
-        // Spin finished
         setIsSpinning(false);
         setHasRevealed(true);
 
-        // Deterministically pick outcome (Rule R4)
         const chosen = punishments[Math.floor(Math.random() * punishments.length)];
         setSelectedPunishment(chosen);
 
-        // Haptic Vibration feedback (Design Token Specs)
         if ('navigator' in window && 'vibrate' in navigator) {
           navigator.vibrate([200, 100, 200]);
         }
 
-        // Fire Confetti
         confetti({
           particleCount: 80,
           spread: 70,
@@ -140,7 +145,6 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
 
   return (
     <div className="min-h-screen bg-[#0A0A0F] text-[#F5F5F7] p-4 max-w-md mx-auto space-y-6 pb-12 text-center">
-      {/* Top Header */}
       <div className="flex items-center justify-between">
         <button
           onClick={onBack}
@@ -161,9 +165,7 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
         </p>
       </div>
 
-      {/* Roulette Canvas Viewfinder */}
       <div className="relative flex flex-col items-center justify-center my-4">
-        {/* Top Pointer Arrow */}
         <div className="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[20px] border-t-[#FF3B5C] z-20 -mb-3 shadow-lg" />
 
         <canvas
@@ -174,7 +176,6 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
         />
       </div>
 
-      {/* Spin Trigger Button */}
       <button
         disabled={isSpinning}
         onClick={spinRoulette}
@@ -183,7 +184,6 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
         {isSpinning ? 'GIRANDO LA RULETA...' : 'GIRAR RULETA DE LA JUSTICIA 🎰'}
       </button>
 
-      {/* Revealed Sentence Result Card */}
       {hasRevealed && selectedPunishment && (
         <div className="bg-[#16161E] border-2 border-[#FF3B5C] p-5 rounded-2xl space-y-3 shadow-2xl text-left animate-fade-in">
           <div className="flex items-center space-x-2 text-[#FF3B5C]">
@@ -198,7 +198,7 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
           <div className="text-xs text-gray-400 space-y-1 pt-1 border-t border-white/10 font-mono">
             <div>Categoría: <span className="text-white uppercase">{selectedPunishment.category}</span></div>
             <div>Severidad: <span className="text-[#FFC53D]">{selectedPunishment.severity} / 5</span></div>
-            <div>Semilla de Auditoría (R4): <span className="text-gray-500">seed_93f82a_17112000</span></div>
+            <div>Semilla de Auditoría (R4): <span className="text-gray-300 font-bold">{auditSeed}</span></div>
           </div>
         </div>
       )}

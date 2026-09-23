@@ -7,35 +7,12 @@ import { CameraCaptureView } from './components/CameraCaptureView';
 import { GroupView } from './components/GroupView';
 import { JudgementCeremonyView } from './components/JudgementCeremonyView';
 import { ProfileView } from './components/ProfileView';
-import { Profile, Pacto } from './types/pacto';
+import { usePactoStore } from './usePactoStore';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<Profile | null>({
-    id: 'user-demo-id',
-    username: 'carlos_fit',
-    honor_points: 120,
-    shame_count: 1,
-    installed_pwa: true
-  });
-
-  const [currentRoute, setCurrentRoute] = useState<string>('home'); // onboarding, home, pacto_detail, pacto_nuevo, evidencia_nueva, grupo_detail, juicio, perfil
+  const { currentUser, setCurrentUser, pactos, addPacto } = usePactoStore();
+  const [currentRoute, setCurrentRoute] = useState<string>('home');
   const [activePactoId, setActivePactoId] = useState<string>('p1');
-
-  const [pactos, setPactos] = useState<Pacto[]>([
-    {
-      id: 'p1',
-      group_id: 'g1',
-      name: 'Ejercicio Matutino',
-      emoji: '🏋️‍♂️',
-      goal_type: 'habit',
-      target_value: 5,
-      frequency: 'daily',
-      verification_type: 'strict_photo',
-      status: 'active',
-      start_date: new Date().toISOString(),
-      end_date: new Date(Date.now() + 7 * 86400000).toISOString()
-    }
-  ]);
 
   if (!currentUser) {
     return (
@@ -60,7 +37,6 @@ export default function App() {
     <div className="min-h-screen bg-[#0A0A0F] text-[#F5F5F7]">
       {currentRoute === 'home' && (
         <DashboardView
-          pactos={pactos}
           onCreatePactoClick={() => setCurrentRoute('pacto_nuevo')}
           onPactoSelect={(id) => {
             setActivePactoId(id);
@@ -85,7 +61,7 @@ export default function App() {
           groupId="g1"
           onClose={() => setCurrentRoute('home')}
           onPactoCreated={(newPacto) => {
-            setPactos([newPacto, ...pactos]);
+            addPacto(newPacto);
             setActivePactoId(newPacto.id);
             setCurrentRoute('pacto_detail');
           }}
