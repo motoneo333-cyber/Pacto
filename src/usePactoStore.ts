@@ -1,13 +1,17 @@
 import { create } from 'zustand';
 import { supabase } from './lib/supabaseClient';
-import { Profile, Pacto, Progress, Sentence } from './types/pacto';
+import { Profile, Pacto, Progress, Sentence, Group } from './types/pacto';
 
 interface PactoStore {
   currentUser: Profile | null;
+  groups: Group[];
   pactos: Pacto[];
   evidences: Progress[];
   sentences: Sentence[];
   setCurrentUser: (user: Profile | null) => void;
+  fetchGroups: () => Promise<void>;
+  addGroup: (newGroup: Group) => Promise<void>;
+  updateGroup: (groupId: string, updates: Partial<Group>) => Promise<void>;
   fetchPactos: () => Promise<void>;
   addPacto: (newPacto: Pacto) => Promise<void>;
   fetchEvidences: (pactoId: string) => Promise<void>;
@@ -22,6 +26,15 @@ export const usePactoStore = create<PactoStore>((set, get) => ({
     shame_count: 1,
     installed_pwa: true
   },
+  groups: [
+    {
+      id: 'g1',
+      name: 'Los Inquebrantables',
+      emoji: '🛡️',
+      invite_code: 'PACTO2025',
+      created_by: 'user-demo-id'
+    }
+  ],
   pactos: [
     {
       id: 'p1',
@@ -42,6 +55,37 @@ export const usePactoStore = create<PactoStore>((set, get) => ({
 
   setCurrentUser: (user) => set({ currentUser: user }),
 
+  fetchGroups: async () => {
+    try {
+      const { data, error } = await supabase.from('groups').select('*');
+      if (!error && data && data.length > 0) {
+        set({ groups: data as Group[] });
+      }
+    } catch (err) {
+      console.warn('Using local fallback for fetchGroups');
+    }
+  },
+
+  addGroup: async (newGroup) => {
+    set((state) => ({ groups: [newGroup, ...state.groups] }));
+    try {
+      await supabase.from('groups').insert(newGroup);
+    } catch (err) {
+      console.warn('Stored group locally');
+    }
+  },
+
+  updateGroup: async (groupId, updates) => {
+    set((state) => ({
+      groups: state.groups.map((g) => (g.id === groupId ? { ...g, ...updates } : g))
+    }));
+    try {
+      await supabase.from('groups').update(updates).eq('id', groupId);
+    } catch (err) {
+      console.warn('Updated group locally');
+    }
+  },
+
   fetchPactos: async () => {
     try {
       const { data, error } = await supabase.from('pactos').select('*');
@@ -58,7 +102,7 @@ export const usePactoStore = create<PactoStore>((set, get) => ({
     try {
       await supabase.from('pactos').insert(newPacto);
     } catch (err) {
-      console.warn('Stored pacto locally (demo mode)');
+      console.warn('Stored pacto locally');
     }
   },
 
@@ -93,7 +137,7 @@ export const usePactoStore = create<PactoStore>((set, get) => ({
     try {
       await supabase.from('progress').insert(newEv);
     } catch (err) {
-      console.warn('Stored evidence locally (demo mode)');
+      console.warn('Stored evidence locally');
     }
   }
 }));
