@@ -4,10 +4,9 @@ const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || (import.meta 
 const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || (import.meta as any).env?.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('⚠️ Supabase environment variables missing! Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.');
+  throw new Error(
+    '❌ Error crítico: Faltan las variables de entorno de Supabase. Debes configurar VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en tu archivo .env o en el entorno.'
+  );
 }
 
-export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-anon-key'
-);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
