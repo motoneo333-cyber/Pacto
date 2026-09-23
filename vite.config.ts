@@ -5,12 +5,13 @@ import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
 export default defineConfig({
+  envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
   plugins: [
     react(),
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['mask-icon.svg'],
+      includeAssets: ['mask-icon.svg', 'pwa-192x192.png', 'pwa-512x512.png', 'apple-touch-icon.png', 'favicon.ico'],
       manifest: {
         name: 'PACTO — Cumple o asume las consecuencias',
         short_name: 'PACTO',
@@ -21,9 +22,14 @@ export default defineConfig({
         orientation: 'portrait',
         icons: [
           {
-            src: 'mask-icon.svg',
-            sizes: '192x192 512x512',
-            type: 'image/svg+xml',
+            src: 'pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
             purpose: 'any maskable'
           }
         ],
@@ -43,6 +49,17 @@ export default defineConfig({
       }
     })
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          supabase: ['@supabase/supabase-js'],
+          icons: ['lucide-react']
+        }
+      }
+    }
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src')

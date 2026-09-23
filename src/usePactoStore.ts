@@ -57,9 +57,22 @@ export const usePactoStore = create<PactoStore>((set, get) => ({
 
   fetchGroups: async () => {
     try {
+      const currentUser = get().currentUser;
       const { data, error } = await supabase.from('groups').select('*');
       if (!error && data && data.length > 0) {
         set({ groups: data as Group[] });
+      } else if (currentUser) {
+        // Dynamic initial group if none exists yet for real logged-in user
+        const dynamicGroup: Group = {
+          id: `group-${currentUser.id.slice(0, 8)}`,
+          name: `Grupo de ${currentUser.username}`,
+          emoji: '🔥',
+          invite_code: `P${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
+          created_by: currentUser.id
+        };
+        set((state) => ({
+          groups: state.groups.some((g) => g.id === dynamicGroup.id) ? state.groups : [dynamicGroup, ...state.groups]
+        }));
       }
     } catch (err) {
       console.warn('Using local fallback for fetchGroups');
@@ -67,9 +80,22 @@ export const usePactoStore = create<PactoStore>((set, get) => ({
   },
 
   addGroup: async (newGroup) => {
-    set((state) => ({ groups: [newGroup, ...state.groups] }));
+    const currentUser = get().currentUser;
+    const groupWithUser = {
+      ...newGroup,
+      created_by: currentUser?.id || newGroup.created_by
+    };
+
+    set((state) => ({ groups: [groupWithUser, ...state.groups] }));
     try {
-      await supabase.from('groups').insert(newGroup);
+      await supabase.from('groups').insert(groupWithUser);
+      if (currentUser?.id) {
+        await supabase.from('group_members').insert({
+          group_id: groupWithUser.id,
+          user_id: currentUser.id,
+          role: 'admin'
+        });
+      }
     } catch (err) {
       console.warn('Stored group locally');
     }
@@ -98,9 +124,18 @@ export const usePactoStore = create<PactoStore>((set, get) => ({
   },
 
   addPacto: async (newPacto) => {
+    const currentUser = get().currentUser;
     set((state) => ({ pactos: [newPacto, ...state.pactos] }));
     try {
       await supabase.from('pactos').insert(newPacto);
+      if (currentUser?.id) {
+        await supabase.from('pacto_members').insert({
+          pacto_id: newPacto.id,
+          user_id: currentUser.id,
+          signed: true,
+          signed_at: new Date().toISOString()
+        });
+      }
     } catch (err) {
       console.warn('Stored pacto locally');
     }
@@ -121,10 +156,11 @@ export const usePactoStore = create<PactoStore>((set, get) => ({
   },
 
   addEvidence: async (evidence) => {
+    const currentUser = get().currentUser;
     const newEv = {
       id: `ev-${Date.now()}`,
       pacto_id: evidence.pacto_id || 'p1',
-      user_id: evidence.user_id || 'user-demo-id',
+      user_id: currentUser?.id || evidence.user_id || 'user-demo-id',
       entry_date: new Date().toISOString().split('T')[0],
       evidence_url: evidence.evidence_url,
       gps_lat: evidence.gps_lat,

@@ -19,7 +19,7 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
 
   const [emoji, setEmoji] = useState('🔥');
   const [punishmentBody, setPunishmentBody] = useState('');
-
+  
   const [punishments, setPunishments] = useState<Array<{
     id: string;
     body: string;
