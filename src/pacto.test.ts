@@ -35,7 +35,40 @@ describe('PACTO Invariants & Business Rules Tests', () => {
     expect(result.success).toBe(true);
   });
 
-  it('R3 & Draft->Active transition: Requires unanimous punishment approvals and all signatures', () => {
+  it('canActivate: Rejects pact activation if end_date is in the past', () => {
+    const pacto = {
+      id: 'p1',
+      group_id: 'g1',
+      name: 'Ejercicio',
+      goal_type: 'habit' as const,
+      target_value: 10,
+      frequency: 'daily' as const,
+      verification_type: 'strict_photo' as const,
+      status: 'draft' as const,
+      start_date: new Date(Date.now() - 86400000 * 10).toISOString(),
+      end_date: new Date(Date.now() - 86400000).toISOString()
+    };
+
+    const members = [
+      { pacto_id: 'p1', user_id: 'u1', signed: true },
+      { pacto_id: 'p1', user_id: 'u2', signed: true }
+    ];
+
+    const punishments = [
+      { id: 'pun1', pacto_id: 'p1', proposed_by: 'u1', body: 'Correr 10km cantando', category: 'embarrassment' as const, severity: 3 }
+    ];
+
+    const approvals = [
+      { punishment_id: 'pun1', user_id: 'u1', approved: true },
+      { punishment_id: 'pun1', user_id: 'u2', approved: true }
+    ];
+
+    const res = PactoStateMachine.canActivate(pacto, members, punishments, approvals);
+    expect(res.success).toBe(false);
+    expect(res.error).toContain('futura');
+  });
+
+  it('canActivate: Rejects activation if fewer than 2 members or unsigned member', () => {
     const pacto = {
       id: 'p1',
       group_id: 'g1',
@@ -49,33 +82,26 @@ describe('PACTO Invariants & Business Rules Tests', () => {
       end_date: new Date(Date.now() + 86400000 * 7).toISOString()
     };
 
-    const members = [
+    const singleMember = [{ pacto_id: 'p1', user_id: 'u1', signed: true }];
+    const unsignedMembers = [
       { pacto_id: 'p1', user_id: 'u1', signed: true },
-      { pacto_id: 'p1', user_id: 'u2', signed: true }
+      { pacto_id: 'p1', user_id: 'u2', signed: false }
     ];
 
     const punishments = [
       { id: 'pun1', pacto_id: 'p1', proposed_by: 'u1', body: 'Correr 10km cantando', category: 'embarrassment' as const, severity: 3 }
     ];
 
-    // Unanimous approval
-    const unanimousApprovals = [
+    const approvals = [
       { punishment_id: 'pun1', user_id: 'u1', approved: true },
       { punishment_id: 'pun1', user_id: 'u2', approved: true }
     ];
 
-    expect(PactoStateMachine.canActivate(pacto, members, punishments, unanimousApprovals).success).toBe(true);
-
-    // Partial approval
-    const partialApprovals = [
-      { punishment_id: 'pun1', user_id: 'u1', approved: true },
-      { punishment_id: 'pun1', user_id: 'u2', approved: false }
-    ];
-
-    expect(PactoStateMachine.canActivate(pacto, members, punishments, partialApprovals).success).toBe(false);
+    expect(PactoStateMachine.canActivate(pacto, singleMember, punishments, approvals).success).toBe(false);
+    expect(PactoStateMachine.canActivate(pacto, unsignedMembers, punishments, approvals).success).toBe(false);
   });
 
-  it('R7: Ties in evidence voting result in conservative rejection', () => {
+  describe('evaluateEvidenceVotes across group sizes (2, 3, 4, 5 members)', () => {
     const evidence = {
       id: 'ev1',
       pacto_id: 'p1',
@@ -85,12 +111,50 @@ describe('PACTO Invariants & Business Rules Tests', () => {
       status: 'pending' as const
     };
 
-    const votes = [
-      { progress_id: 'ev1', voter_id: 'voter1', verdict: true },
-      { progress_id: 'ev1', voter_id: 'voter2', verdict: false }
-    ];
+    it('2 total members (1 voter needed): 1 positive -> approved, 1 negative -> rejected', () => {
+      const posVotes = [{ progress_id: 'ev1', voter_id: 'voter1', verdict: true }];
+      const negVotes = [{ progress_id: 'ev1', voter_id: 'voter1', verdict: false }];
 
-    const status = PactoStateMachine.evaluateEvidenceVotes(evidence, votes, 3);
-    expect(status).toBe('rejected');
+      expect(PactoStateMachine.evaluateEvidenceVotes(evidence, posVotes, 2)).toBe('approved');
+      expect(PactoStateMachine.evaluateEvidenceVotes(evidence, negVotes, 2)).toBe('rejected');
+    });
+
+    it('3 total members (2 voters needed): 1 vs 1 tie -> conservative rejection (R7)', () => {
+      const tieVotes = [
+        { progress_id: 'ev1', voter_id: 'voter1', verdict: true },
+        { progress_id: 'ev1', voter_id: 'voter2', verdict: false }
+      ];
+
+      expect(PactoStateMachine.evaluateEvidenceVotes(evidence, tieVotes, 3)).toBe('rejected');
+    });
+
+    it('4 total members (3 voters needed): 2 positive -> approved, 2 negative -> rejected', () => {
+      const approvedVotes = [
+        { progress_id: 'ev1', voter_id: 'voter1', verdict: true },
+        { progress_id: 'ev1', voter_id: 'voter2', verdict: true }
+      ];
+      const rejectedVotes = [
+        { progress_id: 'ev1', voter_id: 'voter1', verdict: false },
+        { progress_id: 'ev1', voter_id: 'voter2', verdict: false }
+      ];
+
+      expect(PactoStateMachine.evaluateEvidenceVotes(evidence, approvedVotes, 4)).toBe('approved');
+      expect(PactoStateMachine.evaluateEvidenceVotes(evidence, rejectedVotes, 4)).toBe('rejected');
+    });
+
+    it('5 total members (4 voters needed): 3 positive -> approved, 2 negative -> rejected', () => {
+      const approvedVotes = [
+        { progress_id: 'ev1', voter_id: 'voter1', verdict: true },
+        { progress_id: 'ev1', voter_id: 'voter2', verdict: true },
+        { progress_id: 'ev1', voter_id: 'voter3', verdict: true }
+      ];
+      const rejectedVotes = [
+        { progress_id: 'ev1', voter_id: 'voter1', verdict: false },
+        { progress_id: 'ev1', voter_id: 'voter2', verdict: false }
+      ];
+
+      expect(PactoStateMachine.evaluateEvidenceVotes(evidence, approvedVotes, 5)).toBe('approved');
+      expect(PactoStateMachine.evaluateEvidenceVotes(evidence, rejectedVotes, 5)).toBe('rejected');
+    });
   });
 });

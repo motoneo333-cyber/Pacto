@@ -1,9 +1,10 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Camera, MapPin, RefreshCw, ArrowLeft, Check, ShieldCheck, WifiOff } from 'lucide-react';
+import { queueOfflineEvidence } from '../lib/offlineQueue';
 
 interface CameraCaptureProps {
   onBack: () => void;
-  onCaptured: (evidence: any) => void;
+  onCaptured: (evidence: { id: string; imageUrl: string; gps_lat?: number; gps_lng?: number; server_timestamp: string; offlineQueued: boolean }) => void;
 }
 
 export const CameraCaptureView: React.FC<CameraCaptureProps> = ({ onBack, onCaptured }) => {
@@ -18,13 +19,11 @@ export const CameraCaptureView: React.FC<CameraCaptureProps> = ({ onBack, onCapt
   const [isOffline, setIsOffline] = useState<boolean>(!navigator.onLine);
 
   useEffect(() => {
-    // Track online/offline status
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Initialize MediaDevices Camera Stream (Rule R5)
     navigator.mediaDevices
       .getUserMedia({ video: { facingMode: 'environment' }, audio: false })
       .then((mediaStream) => {
@@ -37,7 +36,6 @@ export const CameraCaptureView: React.FC<CameraCaptureProps> = ({ onBack, onCapt
         console.error('Camera access error:', err);
       });
 
-    // Obtain GPS location if available
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -73,10 +71,8 @@ export const CameraCaptureView: React.FC<CameraCaptureProps> = ({ onBack, onCapt
 
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      // Draw live camera frame
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Overlay Server Timestamp & GPS metadata directly on image canvas (Rule R5)
       ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
       ctx.fillRect(10, canvas.height - 60, canvas.width - 20, 50);
 
@@ -99,7 +95,7 @@ export const CameraCaptureView: React.FC<CameraCaptureProps> = ({ onBack, onCapt
     setCapturedImage(null);
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!capturedImage) return;
 
     const evidenceData = {
@@ -112,7 +108,7 @@ export const CameraCaptureView: React.FC<CameraCaptureProps> = ({ onBack, onCapt
     };
 
     if (isOffline) {
-      alert('Sin conexión: Evidencia guardada en cola de reintento automático (IndexedDB Background Sync).');
+      await queueOfflineEvidence(evidenceData);
     }
 
     onCaptured(evidenceData);
@@ -120,7 +116,6 @@ export const CameraCaptureView: React.FC<CameraCaptureProps> = ({ onBack, onCapt
 
   return (
     <div className="fixed inset-0 bg-black text-[#F5F5F7] flex flex-col justify-between p-4 z-50">
-      {/* Top Controls */}
       <div className="flex items-center justify-between z-10 pt-2">
         <button
           onClick={onBack}
@@ -142,7 +137,6 @@ export const CameraCaptureView: React.FC<CameraCaptureProps> = ({ onBack, onCapt
         </div>
       </div>
 
-      {/* Main Camera Viewfinder */}
       <div className="relative flex-1 my-4 rounded-3xl overflow-hidden bg-[#16161E] border border-white/10 flex items-center justify-center">
         {!capturedImage ? (
           <video
@@ -158,7 +152,6 @@ export const CameraCaptureView: React.FC<CameraCaptureProps> = ({ onBack, onCapt
 
         <canvas ref={canvasRef} className="hidden" />
 
-        {/* Live GPS Badge Overlay */}
         <div className="absolute bottom-4 left-4 right-4 bg-black/70 backdrop-blur-md p-3 rounded-2xl border border-white/10 text-xs space-y-1">
           <div className="flex items-center space-x-2 text-gray-300">
             <MapPin className="w-4 h-4 text-[#FF5A1F]" />
@@ -176,7 +169,6 @@ export const CameraCaptureView: React.FC<CameraCaptureProps> = ({ onBack, onCapt
         </div>
       </div>
 
-      {/* Bottom Controls */}
       <div className="pb-6 pt-2 flex items-center justify-center space-x-6">
         {!capturedImage ? (
           <button
