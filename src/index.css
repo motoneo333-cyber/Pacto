@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0A0A0F;
+  --surface: #16161E;
+  --primary: #FF5A1F;
+  --success: #B4F461;
+  --danger: #FF3B5C;
+  --gold: #FFC53D;
+  --text: #F5F5F7;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --radius: 16px;
+  --motion-spring: cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+}
