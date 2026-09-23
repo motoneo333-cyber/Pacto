@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Plus, Flame, Clock, Shield, Users, ChevronRight, User, AlertTriangle } from 'lucide-react';
+import { Plus, Flame, Clock, Shield, Users, ChevronRight, User, AlertTriangle, FileText, CheckCircle2 } from 'lucide-react';
 import { Pacto } from '../types/pacto';
 import { usePactoStore } from '../usePactoStore';
 
@@ -22,13 +22,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     fetchPactos();
   }, [fetchPactos]);
 
-  // Mock group member status summary for "cumple o asume" workflow
   const groupMembers = [
     { id: '1', name: 'Carlos (Tú)', streak: 5, status: 'on_track', avatar: 'C' },
     { id: '2', name: 'Sofía', streak: 4, status: 'on_track', avatar: 'S' },
     { id: '3', name: 'Mateo', streak: 1, status: 'behind', avatar: 'M' },
     { id: '4', name: 'Elena', streak: 0, status: 'danger', avatar: 'E' }
   ];
+
+  const draftPactos = pactos.filter((p) => p.status === 'draft');
+  const activePactos = pactos.filter((p) => p.status === 'active');
 
   return (
     <div className="min-h-screen bg-[#090A0F] text-[#F3F4F6] p-4 max-w-md mx-auto space-y-6 pb-28">
@@ -54,7 +56,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <Users className="w-4 h-4 text-[#FF5A1F]" />
             <span>Estado de los Miembros</span>
           </h3>
-          <span className="text-[11px] font-bold text-[#FF3B5C]">1 En Peligro</span>
+          <span className="text-[11px] font-bold text-[#F87171]">1 En Peligro</span>
         </div>
 
         <div className="flex items-center justify-between pt-1">
@@ -76,12 +78,40 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           ))}
         </div>
 
-        {/* Dynamic Action Alert */}
         <div className="bg-[#F87171]/10 border border-[#F87171]/30 p-3 rounded-xl flex items-center space-x-2.5 text-xs text-[#F87171] font-semibold mt-2">
           <AlertTriangle className="w-4 h-4 flex-shrink-0" />
           <span>Vas 1 evidencia atrasado en tu meta. Quedan 3 días para el juicio.</span>
         </div>
       </div>
+
+      {/* Draft Signatures & Vows Tray */}
+      {draftPactos.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[#FBBF24] flex items-center space-x-2">
+            <FileText className="w-4 h-4" />
+            <span>Pactos Pendientes de Firma o Voto</span>
+          </h2>
+
+          <div className="space-y-2">
+            {draftPactos.map((dp) => (
+              <div
+                key={dp.id}
+                onClick={() => onPactoSelect(dp.id)}
+                className="bg-[#12141D] border border-[#FBBF24]/30 hover:border-[#FBBF24] p-4 rounded-2xl cursor-pointer flex items-center justify-between shadow-lg"
+              >
+                <div className="flex items-center space-x-3">
+                  <span className="text-xl">{dp.emoji || '📝'}</span>
+                  <div>
+                    <h4 className="font-bold text-xs text-white">{dp.name}</h4>
+                    <p className="text-[11px] text-gray-300 font-semibold">Pendiente de firma unánime de los miembros</p>
+                  </div>
+                </div>
+                <CheckCircle2 className="w-5 h-5 text-[#FBBF24]" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Active Pactos Section */}
       <div className="space-y-4">
@@ -91,18 +121,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span>Pactos Activos</span>
           </h2>
           <span className="text-xs bg-[#FF5A1F]/20 text-[#FF5A1F] px-2.5 py-1 rounded-full font-bold">
-            {pactos.filter((p) => p.status === 'active').length} activos
+            {activePactos.length} activos
           </span>
         </div>
 
-        {pactos.length === 0 ? (
+        {activePactos.length === 0 ? (
           <div className="bg-[#12141D] border border-white/10 rounded-2xl p-8 text-center space-y-3">
             <Shield className="w-10 h-10 text-gray-400 mx-auto" />
             <h3 className="text-base font-bold text-gray-200">No tienes pactos activos</h3>
             <p className="text-xs text-gray-300">Crea un pacto con tu grupo de amigos para empezar el reto.</p>
             <button
               onClick={onCreatePactoClick}
-              className="mt-2 bg-[#FF5A1F] hover:bg-[#FF5A1F]/90 text-white font-bold text-xs px-4 py-2.5 rounded-xl inline-flex items-center space-x-2"
+              className="mt-2 bg-[#FF5A1F] hover:bg-[#FF5A1F]/90 text-white font-bold text-xs px-4 py-2.5 rounded-xl inline-flex items-center space-x-2 min-h-[44px]"
             >
               <Plus className="w-4 h-4" />
               <span>Crear Primer Pacto</span>
@@ -110,7 +140,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         ) : (
           <div className="space-y-3">
-            {pactos.map((pacto) => {
+            {activePactos.map((pacto) => {
               const radius = 24;
               const circumference = 2 * Math.PI * radius;
               const progressPercentage = 0.65;

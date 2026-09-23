@@ -47,11 +47,12 @@ function PactoDetailWrapper() {
 
 function PactoWizardWrapper() {
   const navigate = useNavigate();
-  const { addPacto } = usePactoStore();
+  const { addPacto, groups } = usePactoStore();
+  const groupId = groups[0]?.id || 'g1';
 
   return (
     <PactoWizardView
-      groupId="123e4567-e89b-12d3-a456-426614174000"
+      groupId={groupId}
       onClose={() => navigate('/home')}
       onPactoCreated={(newPacto) => {
         addPacto(newPacto);
