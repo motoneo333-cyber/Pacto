@@ -14,18 +14,16 @@ interface PactoWizardProps {
 export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, onPactoCreated }) => {
   const [step, setStep] = useState<number>(1);
 
-  // Default dates
   const todayISO = new Date().toISOString();
   const defaultEndISO = new Date(Date.now() + 7 * 86400000).toISOString();
 
   const [emoji, setEmoji] = useState('🔥');
   const [punishmentBody, setPunishmentBody] = useState('');
 
-  // Model per-member approvals for punishments (Rule R3)
   const [punishments, setPunishments] = useState<Array<{
     id: string;
     body: string;
-    approvals: Record<string, boolean>; // userId -> approved
+    approvals: Record<string, boolean>;
   }>>([
     {
       id: '1',
@@ -34,6 +32,8 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
     }
   ]);
 
+  const [holdProgress, setHoldProgress] = useState(0);
+  const [isHolding, setIsHolding] = useState(false);
   const [signed, setSigned] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -63,6 +63,24 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
   const selectedFrequency = watch('frequency');
   const selectedVerificationType = watch('verification_type');
 
+  React.useEffect(() => {
+    let interval: any;
+    if (isHolding && holdProgress < 100) {
+      interval = setInterval(() => {
+        setHoldProgress((prev) => {
+          if (prev >= 95) {
+            setSigned(true);
+            return 100;
+          }
+          return prev + 5;
+        });
+      }, 50);
+    } else if (!isHolding && holdProgress < 100) {
+      setHoldProgress(0);
+    }
+    return () => clearInterval(interval);
+  }, [isHolding, holdProgress]);
+
   const handleAddPunishment = () => {
     if (punishmentBody.trim().length < 10) {
       setFormError('El castigo debe tener al menos 10 caracteres (R3)');
@@ -74,7 +92,7 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
       {
         id: Date.now().toString(),
         body: punishmentBody.trim(),
-        approvals: { 'user-demo-id': true, 'member-2': true } // All active members approved
+        approvals: { 'user-demo-id': true, 'member-2': true }
       }
     ]);
     setPunishmentBody('');
@@ -87,7 +105,6 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
   const onSubmit = (formData: any) => {
     setFormError(null);
 
-    // Initial pact is created in DRAFT state
     const draftPacto = {
       id: `pacto-${Date.now()}`,
       ...formData,
@@ -116,7 +133,6 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
       }))
     );
 
-    // Validate draft -> active transition invariants (R1-R3)
     const activationResult = PactoStateMachine.canActivate(
       draftPacto,
       members,
@@ -129,17 +145,17 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
       return;
     }
 
-    // Pass validated active pact
     onPactoCreated({ ...draftPacto, status: 'active' });
   };
 
   return (
-    <div className="min-h-screen bg-[#090A0F] text-[#F3F4F6] p-4 max-w-md mx-auto space-y-6 pb-12">
-      {/* Top Header */}
+    <div className="min-h-screen bg-[#090A0F] text-[#F3F4F6] p-4 max-w-md mx-auto space-y-6 pb-28">
       <div className="flex items-center justify-between">
         <button
+          type="button"
           onClick={step === 1 ? onClose : () => setStep(step - 1)}
-          className="p-2.5 bg-[#12141D] border border-white/10 rounded-xl text-gray-300 hover:text-white"
+          aria-label="Volver"
+          className="p-2.5 bg-[#12141D] border border-white/10 rounded-xl text-gray-300 hover:text-white focus-visible:ring-2 focus-visible:ring-[#FF5A1F]"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -148,14 +164,12 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
         </span>
       </div>
 
-      {/* Form Error Banner */}
       {formError && (
         <div className="p-3 bg-[#F87171]/10 border border-[#F87171] rounded-xl text-xs text-[#F87171] font-semibold">
           {formError}
         </div>
       )}
 
-      {/* Progress Bar */}
       <div className="w-full bg-[#12141D] h-1.5 rounded-full overflow-hidden border border-white/5">
         <div
           className="bg-[#FF5A1F] h-full transition-all duration-300"
@@ -164,7 +178,6 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        {/* Step 1: Goal Config */}
         {step === 1 && (
           <div className="space-y-4">
             <h2 className="text-lg font-extrabold text-white">1. Configura tu Meta Real</h2>
@@ -183,10 +196,10 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
                     type="text"
                     {...register('name')}
                     placeholder="ej: Leer 20 páginas al día"
-                    className="flex-1 bg-[#12141D] border border-white/10 rounded-xl px-4 py-2.5 text-sm font-semibold text-white focus:outline-none focus:border-[#FF5A1F]"
+                    className="flex-1 bg-[#12141D] border border-white/10 rounded-xl px-4 py-2.5 text-xs font-semibold text-white focus:outline-none focus:border-[#FF5A1F]"
                   />
                 </div>
-                {errors.name && <p className="text-[10px] text-[#F87171] mt-1">{errors.name.message}</p>}
+                {errors.name && <p className="text-[11px] text-[#F87171] mt-1">{errors.name.message}</p>}
               </div>
 
               <div>
@@ -200,10 +213,10 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
                         setValue('goal_type', type);
                         if (type === 'abstinence') setValue('frequency', 'daily');
                       }}
-                      className={`py-2.5 px-2 rounded-xl text-xs font-bold border capitalize transition ${
+                      className={`py-2.5 px-2 rounded-xl text-xs font-bold border capitalize transition min-h-[44px] ${
                         selectedGoalType === type
                           ? 'bg-[#FF5A1F]/20 border-[#FF5A1F] text-[#FF5A1F]'
-                          : 'bg-[#12141D] border-white/5 text-gray-400'
+                          : 'bg-[#12141D] border-white/5 text-gray-300'
                       }`}
                     >
                       {type}
@@ -221,10 +234,10 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
                       type="button"
                       disabled={selectedGoalType === 'abstinence' && freq !== 'daily'}
                       onClick={() => setValue('frequency', freq)}
-                      className={`py-2.5 px-2 rounded-xl text-xs font-bold border capitalize transition ${
+                      className={`py-2.5 px-2 rounded-xl text-xs font-bold border capitalize transition min-h-[44px] ${
                         selectedFrequency === freq
                           ? 'bg-[#FF5A1F]/20 border-[#FF5A1F] text-[#FF5A1F]'
-                          : 'bg-[#12141D] border-white/5 text-gray-400 disabled:opacity-30'
+                          : 'bg-[#12141D] border-white/5 text-gray-300 disabled:opacity-30'
                       }`}
                     >
                       {freq}
@@ -240,21 +253,20 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
                   {...register('end_date')}
                   className="w-full bg-[#12141D] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#FF5A1F]"
                 />
-                {errors.end_date && <p className="text-[10px] text-[#F87171] mt-1">{errors.end_date.message}</p>}
+                {errors.end_date && <p className="text-[11px] text-[#F87171] mt-1">{errors.end_date.message}</p>}
               </div>
             </div>
 
             <button
               type="button"
               onClick={() => setStep(2)}
-              className="w-full bg-[#FF5A1F] hover:bg-[#FF5A1F]/90 text-white font-bold py-3.5 rounded-xl transition shadow-lg mt-4"
+              className="w-full bg-[#FF5A1F] hover:bg-[#FF5A1F]/90 text-white font-bold py-3.5 rounded-xl transition shadow-lg mt-4 min-h-[44px]"
             >
               Siguiente: Método de Verificación
             </button>
           </div>
         )}
 
-        {/* Step 2: Verification Type */}
         {step === 2 && (
           <div className="space-y-4">
             <h2 className="text-lg font-extrabold text-white">2. Método de Verificación</h2>
@@ -273,8 +285,8 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
                       : 'bg-[#12141D] border-white/5 hover:border-white/20'
                   }`}
                 >
-                  <h3 className="font-bold text-sm text-white">{method.title}</h3>
-                  <p className="text-xs text-gray-400 mt-1">{method.desc}</p>
+                  <h3 className="font-bold text-xs text-white">{method.title}</h3>
+                  <p className="text-xs text-gray-300 mt-1">{method.desc}</p>
                 </div>
               ))}
             </div>
@@ -282,14 +294,13 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
             <button
               type="button"
               onClick={() => setStep(3)}
-              className="w-full bg-[#FF5A1F] hover:bg-[#FF5A1F]/90 text-white font-bold py-3.5 rounded-xl transition shadow-lg"
+              className="w-full bg-[#FF5A1F] hover:bg-[#FF5A1F]/90 text-white font-bold py-3.5 rounded-xl transition shadow-lg min-h-[44px]"
             >
               Siguiente: Pozo de Castigos
             </button>
           </div>
         )}
 
-        {/* Step 3: Punishments */}
         {step === 3 && (
           <div className="space-y-4">
             <h2 className="text-lg font-extrabold text-white">3. Pozo de Castigos Reales (R3)</h2>
@@ -305,7 +316,7 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
               <button
                 type="button"
                 onClick={handleAddPunishment}
-                className="bg-[#FF5A1F] hover:bg-[#FF5A1F]/90 text-white font-bold px-4 rounded-xl text-xs flex items-center space-x-1"
+                className="bg-[#FF5A1F] hover:bg-[#FF5A1F]/90 text-white font-bold px-4 rounded-xl text-xs flex items-center space-x-1 min-h-[44px]"
               >
                 <Plus className="w-4 h-4" />
                 <span>Añadir</span>
@@ -319,7 +330,8 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
                   <button
                     type="button"
                     onClick={() => handleRemovePunishment(p.id)}
-                    className="text-gray-500 hover:text-[#F87171] p-1"
+                    aria-label="Eliminar castigo"
+                    className="text-gray-400 hover:text-[#F87171] p-2"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -331,14 +343,13 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
               type="button"
               disabled={punishments.length === 0}
               onClick={() => setStep(4)}
-              className="w-full bg-[#FF5A1F] hover:bg-[#FF5A1F]/90 text-white font-bold py-3.5 rounded-xl disabled:opacity-40 transition shadow-lg"
+              className="w-full bg-[#FF5A1F] hover:bg-[#FF5A1F]/90 text-white font-bold py-3.5 rounded-xl disabled:opacity-40 transition shadow-lg min-h-[44px]"
             >
               Siguiente: Ceremonia de Firma
             </button>
           </div>
         )}
 
-        {/* Step 4: Digital Signature */}
         {step === 4 && (
           <div className="space-y-6 text-center">
             <div className="p-5 bg-[#12141D] border border-white/10 rounded-2xl space-y-2 text-left">
@@ -346,29 +357,38 @@ export const PactoWizardView: React.FC<PactoWizardProps> = ({ groupId, onClose, 
                 <Sparkles className="w-5 h-5" />
                 <h2 className="text-base font-extrabold text-white">Acuerdo de Compromiso Real</h2>
               </div>
-              <p className="text-xs text-gray-400">
-                Al firmar digitalmente, aceptas la meta y las consecuencias asignadas.
+              <p className="text-xs text-gray-300">
+                Mantén pulsado para firmar digitalmente y sellar el pacto con tu grupo.
               </p>
             </div>
 
             <div
-              onClick={() => setSigned(!signed)}
-              className={`p-6 rounded-2xl border-2 border-dashed cursor-pointer transition flex flex-col items-center justify-center space-y-2 ${
-                signed
-                  ? 'bg-[#34D399]/10 border-[#34D399] text-[#34D399]'
-                  : 'bg-[#12141D] border-white/20 hover:border-[#FF5A1F] text-gray-400'
-              }`}
+              onMouseDown={() => setIsHolding(true)}
+              onMouseUp={() => setIsHolding(false)}
+              onTouchStart={() => setIsHolding(true)}
+              onTouchEnd={() => setIsHolding(false)}
+              className="relative overflow-hidden p-8 rounded-2xl border-2 border-dashed border-[#FF5A1F]/50 bg-[#12141D] cursor-pointer select-none min-h-[100px] flex items-center justify-center"
             >
-              <CheckCircle2 className="w-10 h-10" />
-              <span className="font-extrabold text-sm">
-                {signed ? '¡PACTO FIRMADO Y REGISTRADO!' : 'Toca aquí para Firmar Digitalmente'}
-              </span>
+              <div
+                className="absolute left-0 top-0 bottom-0 bg-[#FF5A1F]/30 transition-all duration-75"
+                style={{ width: `${holdProgress}%` }}
+              />
+              <div className="relative z-10 font-extrabold text-sm flex items-center space-x-2 text-white">
+                <CheckCircle2 className={`w-6 h-6 ${signed ? 'text-[#34D399]' : 'text-gray-400'}`} />
+                <span>
+                  {signed
+                    ? '¡PACTO FIRMADO Y SELLADO!'
+                    : isHolding
+                    ? `Mantén pulsado (${holdProgress}%)`
+                    : 'Mantén pulsado para Firmar'}
+                </span>
+              </div>
             </div>
 
             <button
               type="submit"
               disabled={!signed}
-              className="w-full bg-[#FF5A1F] hover:bg-[#FF5A1F]/90 text-white font-extrabold py-4 rounded-xl disabled:opacity-40 shadow-xl transition"
+              className="w-full bg-[#FF5A1F] hover:bg-[#FF5A1F]/90 text-white font-extrabold py-4 rounded-xl disabled:opacity-40 shadow-xl transition min-h-[44px]"
             >
               Activar Pacto Real Ahora
             </button>

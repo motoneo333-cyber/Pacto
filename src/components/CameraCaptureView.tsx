@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Camera, MapPin, RefreshCw, ArrowLeft, Check, ShieldCheck, WifiOff } from 'lucide-react';
-import { queueOfflineEvidence } from '../lib/offlineQueue';
+import { Camera, MapPin, RefreshCw, ArrowLeft, Check, ShieldCheck, WifiOff, AlertCircle } from 'lucide-react';
+import { queueOfflineEvidence, getQueuedEvidences } from '../lib/offlineQueue';
 
 interface CameraCaptureProps {
   onBack: () => void;
@@ -17,12 +17,15 @@ export const CameraCaptureView: React.FC<CameraCaptureProps> = ({ onBack, onCapt
   const [gpsLoading, setGpsLoading] = useState<boolean>(true);
   const [serverTimestamp, setServerTimestamp] = useState<string>('');
   const [isOffline, setIsOffline] = useState<boolean>(!navigator.onLine);
+  const [queuedCount, setQueuedCount] = useState<number>(0);
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+
+    getQueuedEvidences().then((items) => setQueuedCount(items.length)).catch(() => {});
 
     navigator.mediaDevices
       .getUserMedia({ video: { facingMode: 'environment' }, audio: false })
@@ -81,7 +84,7 @@ export const CameraCaptureView: React.FC<CameraCaptureProps> = ({ onBack, onCapt
       ctx.fillText(`PACTO VERIFIED · SERVER TS: ${serverTimestamp}`, 20, canvas.height - 38);
 
       if (gpsLocation) {
-        ctx.fillStyle = '#B4F461';
+        ctx.fillStyle = '#34D399';
         ctx.font = '12px sans-serif';
         ctx.fillText(`GPS: ${gpsLocation.lat.toFixed(4)}, ${gpsLocation.lng.toFixed(4)}`, 20, canvas.height - 18);
       }
@@ -109,35 +112,45 @@ export const CameraCaptureView: React.FC<CameraCaptureProps> = ({ onBack, onCapt
 
     if (isOffline) {
       await queueOfflineEvidence(evidenceData);
+      setQueuedCount((prev) => prev + 1);
     }
 
     onCaptured(evidenceData);
   };
 
   return (
-    <div className="fixed inset-0 bg-black text-[#F5F5F7] flex flex-col justify-between p-4 z-50">
+    <div className="fixed inset-0 bg-black text-[#F3F4F6] flex flex-col justify-between p-4 z-50">
       <div className="flex items-center justify-between z-10 pt-2">
         <button
           onClick={onBack}
-          className="p-3 bg-[#16161E]/80 backdrop-blur-md rounded-full text-white border border-white/10"
+          aria-label="Volver"
+          className="p-3 bg-[#12141D]/80 backdrop-blur-md rounded-full text-white border border-white/10 focus-visible:ring-2 focus-visible:ring-[#FF5A1F]"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
 
         {isOffline && (
-          <div className="bg-[#FF3B5C] text-white px-3 py-1 rounded-full text-xs font-bold flex items-center space-x-1">
+          <div className="bg-[#F87171] text-white px-3 py-1 rounded-full text-xs font-bold flex items-center space-x-1 shadow-lg">
             <WifiOff className="w-3.5 h-3.5" />
             <span>Modo Offline</span>
           </div>
         )}
 
         <div className="bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 text-xs flex items-center space-x-1.5">
-          <ShieldCheck className="w-4 h-4 text-[#B4F461]" />
-          <span className="font-bold text-[#B4F461]">MediaDevices R5</span>
+          <ShieldCheck className="w-4 h-4 text-[#34D399]" />
+          <span className="font-bold text-[#34D399]">MediaDevices R5</span>
         </div>
       </div>
 
-      <div className="relative flex-1 my-4 rounded-3xl overflow-hidden bg-[#16161E] border border-white/10 flex items-center justify-center">
+      {/* Persistent Offline Queue Banner */}
+      {queuedCount > 0 && (
+        <div className="z-10 bg-[#FBBF24]/20 border border-[#FBBF24] p-2.5 rounded-xl text-xs text-[#FBBF24] font-semibold flex items-center space-x-2 my-1">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{queuedCount} evidencia(s) en cola de reintento automático IndexedDB.</span>
+        </div>
+      )}
+
+      <div className="relative flex-1 my-2 rounded-3xl overflow-hidden bg-[#12141D] border border-white/10 flex items-center justify-center">
         {!capturedImage ? (
           <video
             ref={videoRef}
@@ -153,7 +166,7 @@ export const CameraCaptureView: React.FC<CameraCaptureProps> = ({ onBack, onCapt
         <canvas ref={canvasRef} className="hidden" />
 
         <div className="absolute bottom-4 left-4 right-4 bg-black/70 backdrop-blur-md p-3 rounded-2xl border border-white/10 text-xs space-y-1">
-          <div className="flex items-center space-x-2 text-gray-300">
+          <div className="flex items-center space-x-2 text-gray-200">
             <MapPin className="w-4 h-4 text-[#FF5A1F]" />
             <span>
               {gpsLoading
@@ -163,7 +176,7 @@ export const CameraCaptureView: React.FC<CameraCaptureProps> = ({ onBack, onCapt
                 : 'GPS No Disponible'}
             </span>
           </div>
-          <div className="text-[10px] text-gray-400 font-mono">
+          <div className="text-[11px] text-gray-300 font-mono">
             Timestamp Servidor: {serverTimestamp}
           </div>
         </div>
@@ -173,7 +186,8 @@ export const CameraCaptureView: React.FC<CameraCaptureProps> = ({ onBack, onCapt
         {!capturedImage ? (
           <button
             onClick={handleTakePicture}
-            className="w-20 h-20 bg-[#FF5A1F] rounded-full border-4 border-white flex items-center justify-center shadow-2xl active:scale-90 transition"
+            aria-label="Tomar foto de evidencia"
+            className="w-20 h-20 bg-[#FF5A1F] hover:bg-[#FF5A1F]/90 rounded-full border-4 border-white flex items-center justify-center shadow-2xl active:scale-90 transition min-h-[44px]"
           >
             <Camera className="w-8 h-8 text-white" />
           </button>
@@ -181,14 +195,14 @@ export const CameraCaptureView: React.FC<CameraCaptureProps> = ({ onBack, onCapt
           <div className="flex items-center space-x-4 w-full max-w-xs">
             <button
               onClick={handleRetake}
-              className="flex-1 bg-[#16161E] border border-white/20 font-bold py-3.5 rounded-2xl flex items-center justify-center space-x-2 text-gray-300"
+              className="flex-1 bg-[#12141D] border border-white/20 font-bold py-3.5 rounded-2xl flex items-center justify-center space-x-2 text-gray-200 min-h-[44px]"
             >
               <RefreshCw className="w-4 h-4" />
               <span>Repetir</span>
             </button>
             <button
               onClick={handleUpload}
-              className="flex-1 bg-[#B4F461] text-black font-extrabold py-3.5 rounded-2xl flex items-center justify-center space-x-2 shadow-xl"
+              className="flex-1 bg-[#34D399] text-black font-extrabold py-3.5 rounded-2xl flex items-center justify-center space-x-2 shadow-xl min-h-[44px]"
             >
               <Check className="w-5 h-5" />
               <span>Enviar</span>

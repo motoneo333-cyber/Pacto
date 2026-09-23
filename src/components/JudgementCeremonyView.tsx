@@ -56,23 +56,39 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
       ctx.lineWidth = 4;
       ctx.stroke();
 
+      // Render Text - full text wrapped
       ctx.save();
       ctx.translate(centerX, centerY);
       ctx.rotate(startAngle + sliceAngle / 2);
       ctx.textAlign = 'right';
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 12px Space Grotesk, sans-serif';
-      const text = punishments[i].body.substring(0, 18) + '...';
-      ctx.fillText(text, radius - 15, 4);
+      ctx.font = 'bold 11px Inter, sans-serif';
+
+      const fullText = punishments[i].body;
+      const words = fullText.split(' ');
+      let line = '';
+      let yOffset = -4;
+
+      if (words.length > 3) {
+        const line1 = words.slice(0, Math.ceil(words.length / 2)).join(' ');
+        const line2 = words.slice(Math.ceil(words.length / 2)).join(' ');
+        ctx.fillText(line1, radius - 15, -4);
+        ctx.fillText(line2, radius - 15, 8);
+      } else {
+        ctx.fillText(fullText, radius - 15, 4);
+      }
+
       ctx.restore();
     }
 
+    // Outer Rim
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
     ctx.strokeStyle = '#FF5A1F';
     ctx.lineWidth = 6;
     ctx.stroke();
 
+    // Center Pin
     ctx.beginPath();
     ctx.arc(centerX, centerY, 18, 0, 2 * Math.PI);
     ctx.fillStyle = '#090A0F';
@@ -93,6 +109,7 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
     setHasRevealed(false);
     setSelectedPunishment(null);
 
+    // 1. Get seed first (Rule R4)
     let seedToUse = `seed_${Date.now()}_audit`;
     try {
       const { data } = await supabase.functions.invoke('pick-sentence', {
@@ -106,7 +123,7 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
     }
     setAuditSeed(seedToUse);
 
-    // Rule R4 Deterministic Index derived from seed
+    // 2. Deterministically select punishment BEFORE spinning
     let hash = 0;
     for (let i = 0; i < seedToUse.length; i++) {
       hash = (hash << 5) - hash + seedToUse.charCodeAt(i);
@@ -115,9 +132,19 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
     const selectedIndex = Math.abs(hash) % punishments.length;
     const chosenPunishment = punishments[selectedIndex];
 
-    const totalSpinDuration = 5000;
+    // 3. Calculate target angle so top pointer (at -PI/2) aligns precisely on selected slice
+    const sliceAngle = (2 * Math.PI) / punishments.length;
+    const targetSliceCenter = selectedIndex * sliceAngle + sliceAngle / 2;
+    // Pointer is at top (-PI/2)
+    const targetAngleOffset = -Math.PI / 2 - targetSliceCenter;
+
+    // Check prefers-reduced-motion
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const fullSpins = prefersReducedMotion ? 0 : 6;
+    const totalRotation = Math.PI * 2 * fullSpins + targetAngleOffset;
+
+    const totalSpinDuration = prefersReducedMotion ? 1000 : 5000;
     const startTime = performance.now();
-    const totalRotation = Math.PI * 2 * 6 + (selectedIndex * (Math.PI * 2 / punishments.length));
 
     const animate = (now: number) => {
       const elapsed = now - startTime;
@@ -139,11 +166,13 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
           navigator.vibrate([200, 100, 200]);
         }
 
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
+        if (!prefersReducedMotion) {
+          confetti({
+            particleCount: 80,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+        }
       }
     };
 
@@ -151,15 +180,16 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
   };
 
   return (
-    <div className="min-h-screen bg-[#090A0F] text-[#F3F4F6] p-4 max-w-md mx-auto space-y-6 pb-12 text-center">
+    <div className="min-h-screen bg-[#090A0F] text-[#F3F4F6] p-4 max-w-md mx-auto space-y-6 pb-28 text-center">
       <div className="flex items-center justify-between">
         <button
           onClick={onBack}
-          className="p-2 bg-[#12141D] border border-white/10 rounded-xl text-gray-300"
+          aria-label="Volver"
+          className="p-2.5 bg-[#12141D] border border-white/10 rounded-xl text-gray-300 hover:text-white focus-visible:ring-2 focus-visible:ring-[#FF5A1F]"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <div className="flex items-center space-x-1 text-[#FFC53D]">
+        <div className="flex items-center space-x-1.5 text-[#FFC53D]">
           <Scale className="w-5 h-5" />
           <span className="font-extrabold text-sm uppercase tracking-wider">Ceremonia de Juicio</span>
         </div>
@@ -167,7 +197,7 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
 
       <div className="space-y-1">
         <h1 className="text-2xl font-black text-white">{pacto.name}</h1>
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-300">
           La fecha límite ha vencido. La ruleta asignará el castigo aleatorio e inmodificable (R4).
         </p>
       </div>
@@ -202,10 +232,10 @@ export const JudgementCeremonyView: React.FC<JudgementCeremonyProps> = ({ pacto,
             "{selectedPunishment.body}"
           </p>
 
-          <div className="text-xs text-gray-400 space-y-1 pt-1 border-t border-white/10 font-mono">
+          <div className="text-xs text-gray-300 space-y-1 pt-2 border-t border-white/10 font-mono">
             <div>Categoría: <span className="text-white uppercase">{selectedPunishment.category}</span></div>
             <div>Severidad: <span className="text-[#FFC53D]">{selectedPunishment.severity} / 5</span></div>
-            <div>Semilla de Auditoría (R4): <span className="text-gray-300 font-bold">{auditSeed}</span></div>
+            <div>Semilla de Auditoría (R4): <span className="text-gray-200 font-bold">{auditSeed}</span></div>
           </div>
         </div>
       )}

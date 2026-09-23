@@ -8,17 +8,21 @@ import { CameraCaptureView } from './components/CameraCaptureView';
 import { GroupView } from './components/GroupView';
 import { JudgementCeremonyView } from './components/JudgementCeremonyView';
 import { ProfileView } from './components/ProfileView';
+import { BottomNavBar } from './components/BottomNavBar';
 import { usePactoStore } from './usePactoStore';
 
 function DashboardWrapper() {
   const navigate = useNavigate();
   return (
-    <DashboardView
-      onCreatePactoClick={() => navigate('/pacto/nuevo')}
-      onPactoSelect={(id) => navigate(`/pacto/${id}`)}
-      onGroupSelect={(id) => navigate(`/grupo/${id}`)}
-      onProfileClick={() => navigate('/perfil')}
-    />
+    <>
+      <DashboardView
+        onCreatePactoClick={() => navigate('/pacto/nuevo')}
+        onPactoSelect={(id) => navigate(`/pacto/${id}`)}
+        onGroupSelect={(id) => navigate(`/grupo/${id}`)}
+        onProfileClick={() => navigate('/perfil')}
+      />
+      <BottomNavBar />
+    </>
   );
 }
 
@@ -29,12 +33,15 @@ function PactoDetailWrapper() {
   const pacto = pactos.find((p) => p.id === id) || pactos[0];
 
   return (
-    <PactoDetailView
-      pacto={pacto}
-      onBack={() => navigate('/home')}
-      onUploadEvidence={() => navigate('/evidencia/nueva')}
-      onOpenJudgement={() => navigate(`/juicio/${pacto.id}`)}
-    />
+    <>
+      <PactoDetailView
+        pacto={pacto}
+        onBack={() => navigate('/home')}
+        onUploadEvidence={() => navigate('/evidencia/nueva')}
+        onOpenJudgement={() => navigate(`/juicio/${pacto.id}`)}
+      />
+      <BottomNavBar />
+    </>
   );
 }
 
@@ -76,17 +83,25 @@ function JudgementCeremonyWrapper() {
 function GroupViewWrapper() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  return <GroupView groupId={id || 'g1'} onBack={() => navigate('/home')} />;
+  return (
+    <>
+      <GroupView groupId={id || 'g1'} onBack={() => navigate('/home')} />
+      <BottomNavBar />
+    </>
+  );
 }
 
 function ProfileWrapper() {
   const navigate = useNavigate();
   const { currentUser } = usePactoStore();
   return (
-    <ProfileView
-      profile={currentUser || { id: 'u', username: 'guest', honor_points: 0, shame_count: 0, installed_pwa: false }}
-      onBack={() => navigate('/home')}
-    />
+    <>
+      <ProfileView
+        profile={currentUser || { id: 'u', username: 'guest', honor_points: 0, shame_count: 0, installed_pwa: false }}
+        onBack={() => navigate('/home')}
+      />
+      <BottomNavBar />
+    </>
   );
 }
 
